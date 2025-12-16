@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Bayi (Dealer) Model
+model Dealer {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String
+  companyName   String
+  contactName   String
+  phone         String
+  address       String?
+  city          String?
+  taxNumber     String?
+  isApproved    Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orders        Order[]
+  cart          Cart?
+}
+
+// Ürün Kategorileri
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  image       String?
+  parentId    String?
+  parent      Category? @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryToCategory")
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Ürünler (Sulama Ekipmanları)
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  price       Float
+  stock       Int      @default(0)
+  images      String[]
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
+  
+  // Ürün özellikleri
+  brand       String?
+  model       String?
+  material    String?
+  diameter    String?
+  pressure    String?
+  flowRate    String?
+  
+  isActive    Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orderItems  OrderItem[]
+  cartItems   CartItem[]
+}
+
+// Sipariş
+model Order {
+  id              String      @id @default(cuid())
+  orderNumber     String      @unique
+  dealerId        String
+  dealer          Dealer      @relation(fields: [dealerId], references: [id])
+  
+  status          OrderStatus @default(PENDING)
+  totalAmount     Float
+  shippingAddress String
+  notes           String?
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  items           OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float
+}
+
+// Sepet
+model Cart {
+  id        String     @id @default(cuid())
+  dealerId  String     @unique
+  dealer    Dealer     @relation(fields: [dealerId], references: [id])
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cartId    String
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
