@@ -20,11 +20,16 @@ model Dealer {
   taxNumber     String?
   isApproved    Boolean  @default(false)
   isActive      Boolean  @default(true)
+  priceTier     PriceTier @default(STANDARD)
+  creditLimit   Float    @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   orders        Order[]
   cart          Cart?
+  quoteRequests QuoteRequest[]
+  currentAccount CurrentAccount?
+  notifications Notification[]
 }
 
 // Ürün Kategorileri
@@ -68,8 +73,10 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  orderItems  OrderItem[]
-  cartItems   CartItem[]
+  orderItems           OrderItem[]
+  cartItems            CartItem[]
+  quoteRequestItems    QuoteRequestItem[]
+  technicalSpecs       TechnicalSpecification[]
 }
 
 // Sipariş
@@ -126,4 +133,138 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
+}
+
+enum PriceTier {
+  STANDARD
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+enum QuoteStatus {
+  PENDING
+  REVIEWED
+  QUOTED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum TransactionType {
+  DEBIT
+  CREDIT
+  ORDER
+  PAYMENT
+  REFUND
+  ADJUSTMENT
+}
+
+enum NotificationType {
+  ORDER_STATUS
+  QUOTE_STATUS
+  PAYMENT_DUE
+  STOCK_ALERT
+  PROMOTION
+  SYSTEM
+}
+
+// Teklif İstekleri (Quote Requests)
+model QuoteRequest {
+  id              String        @id @default(cuid())
+  quoteNumber     String        @unique
+  dealerId        String
+  dealer          Dealer        @relation(fields: [dealerId], references: [id])
+
+  status          QuoteStatus   @default(PENDING)
+  totalAmount     Float?
+  discountPercent Float?
+  finalAmount     Float?
+  validUntil      DateTime?
+  shippingAddress String
+  notes           String?
+  adminNotes      String?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  reviewedAt      DateTime?
+  quotedAt        DateTime?
+
+  items           QuoteRequestItem[]
+}
+
+model QuoteRequestItem {
+  id             String       @id @default(cuid())
+  quoteRequestId String
+  quoteRequest   QuoteRequest @relation(fields: [quoteRequestId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product      @relation(fields: [productId], references: [id])
+  quantity       Int
+  requestedPrice Float?
+  quotedPrice    Float?
+  notes          String?
+}
+
+// Cari Hesap (Current Account)
+model CurrentAccount {
+  id           String                    @id @default(cuid())
+  dealerId     String                    @unique
+  dealer       Dealer                    @relation(fields: [dealerId], references: [id])
+
+  balance      Float                     @default(0)
+  creditLimit  Float                     @default(0)
+
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+
+  transactions CurrentAccountTransaction[]
+}
+
+model CurrentAccountTransaction {
+  id               String          @id @default(cuid())
+  accountId        String
+  account          CurrentAccount  @relation(fields: [accountId], references: [id])
+
+  type             TransactionType
+  amount           Float
+  balance          Float
+  description      String
+  referenceType    String?
+  referenceId      String?
+
+  createdAt        DateTime        @default(now())
+}
+
+// Bildirimler (Notifications)
+model Notification {
+  id          String           @id @default(cuid())
+  dealerId    String
+  dealer      Dealer           @relation(fields: [dealerId], references: [id])
+
+  type        NotificationType
+  title       String
+  message     String
+  isRead      Boolean          @default(false)
+  link        String?
+
+  createdAt   DateTime         @default(now())
+}
+
+// Teknik Özellikler (Technical Specifications)
+model TechnicalSpecification {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  key         String
+  value       String
+  unit        String?
+  category    String?
+  order       Int      @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([productId, key])
 }
